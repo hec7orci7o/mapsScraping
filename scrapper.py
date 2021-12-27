@@ -19,6 +19,13 @@ class Scrapper:
         "plus_code": "//button[contains(@data-item-id,'oloc')]",
     }
 
+    __CONSTANT = {
+        "accept_cookies": "//button[contains(.,'Acepto')]",
+        "back_button":"//button[@aria-label='Atrás']",
+        "container": "//div[@class='V0h1Ob-haAclf OPZbO-KE6vqe o0s21d-HiaYvf']", # contenedor del resultado
+        "title": "//div[@class='qBF1Pd gm2-subtitle-alt-1']",                    # nombre que identifica al resultado
+    }
+
     def __init__(self) -> None:
         firefox_options = webdriver.FirefoxOptions()
         self.driver = webdriver.Firefox(options=firefox_options)
@@ -27,7 +34,7 @@ class Scrapper:
         self.driver.quit()
 
     def acceptCookies(self) -> None:
-        cookies_accept_button = self.driver.find_element(By.XPATH, "//button[contains(.,'Acepto')]")
+        cookies_accept_button = self.driver.find_element(By.XPATH, self.__CONSTANT["accept_cookies"])
         cookies_accept_button.click()
 
     def getTitle(self) -> str:
@@ -104,7 +111,7 @@ class Scrapper:
         router.click()
 
     def backTo(self) -> None:
-        router = self.driver.find_element(By.XPATH, "//button[@aria-label='Atrás']")
+        router = self.driver.find_element(By.XPATH, self.__CONSTANT["back_button"])
         router.click()
 
     def getData(self) -> dict:
@@ -122,23 +129,20 @@ class Scrapper:
         }
 
     def scroll(self, current) -> int:
-        # contenedor del resultado           -> //div[@class='V0h1Ob-haAclf OPZbO-KE6vqe o0s21d-HiaYvf']
-        # nombre que identifica al resultado -> //div[@class='qBF1Pd gm2-subtitle-alt-1']
-
-        links = self.driver.find_elements(By.XPATH, "//div[@class='qBF1Pd gm2-subtitle-alt-1']")
+        links = self.driver.find_elements(By.XPATH, self.__CONSTANT["title"])
         cResult = 1 # resultado actual
 
         while current >= len(links):
             # time.sleep(mathematics.calc(current))
             time.sleep(0.1)
             try:
-                result = self.driver.find_element(By.XPATH, f"(//div[@class='qBF1Pd gm2-subtitle-alt-1'])[{cResult}]")
+                result = self.driver.find_element(By.XPATH, "(" + self.__CONSTANT["title"] + ")" + f"[{cResult}]")
                 actions = ActionChains(self.driver)
                 actions.move_to_element(result)
                 actions.perform()
                 self.driver.execute_script("arguments[0].scrollIntoView(true);", result)
                 # Actualizo la lista de resultados encontrados
-                links = self.driver.find_elements(By.XPATH, "//div[@class='qBF1Pd gm2-subtitle-alt-1']")
+                links = self.driver.find_elements(By.XPATH, self.__CONSTANT["title"])
                 cResult += 1
             except NoSuchElementException:
                 return len(links)
@@ -151,11 +155,11 @@ class Scrapper:
 
         visitados = {}
         item = 1
-        numResults = len(list(self.driver.find_elements(By.XPATH, "//div[@class='qBF1Pd gm2-subtitle-alt-1']")))
+        numResults = len(list(self.driver.find_elements(By.XPATH, self.__CONSTANT["title"])))
         while item <= numResults:
             numResults = self.scroll(item)
-            result = self.driver.find_element(By.XPATH, f"(//div[@class='V0h1Ob-haAclf OPZbO-KE6vqe o0s21d-HiaYvf'])[{item}]")
-            key = str(self.driver.find_element(By.XPATH, f"(//div[@class='qBF1Pd gm2-subtitle-alt-1'])[{item}]").text).capitalize()
+            result = self.driver.find_element(By.XPATH,  "(" + self.__CONSTANT["container"] + ")" + f"[{item}]")
+            key = str(self.driver.find_element(By.XPATH, "(" + self.__CONSTANT["title"] + ")" + f"[{item}]").text).capitalize()
 
             if key not in list(visitados.keys()):
                 self.goTo(result)
