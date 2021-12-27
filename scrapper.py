@@ -117,7 +117,7 @@ class Scrapper:
             "address" : self.getAddress(),
             "coords" : self.getCoords(self.driver.current_url),
             "domain" : self.getDomain(),
-            "phone" : self.getPhone().replace(" ", ""),
+            "phone" : str(self.getPhone()).replace(" ", ""),
             "plus_code" : self.getGPCode(),
         }
 
