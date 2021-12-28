@@ -1,6 +1,4 @@
-import time
-import re
-import random
+import time, re, random, json
 import mathematics
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -26,14 +24,16 @@ class Scrapper:
         "title": "//div[@class='qBF1Pd gm2-subtitle-alt-1']",                    # nombre que identifica al resultado
     }
 
-    def __init__(self) -> None:
+    def __init__(self, headless= False) -> None:
         firefox_options = webdriver.FirefoxOptions()
+        if headless:
+            firefox_options.headless = True
         self.driver = webdriver.Firefox(options=firefox_options)
 
     def __del__(self) -> None:
         self.driver.quit()
 
-    def __getLinks(self, domain) -> list:
+    def getLinks(self, domain) -> list:
         anchors = self.driver.find_elements(By.TAG_NAME, "a")
         def checkLink(a):
             try:
@@ -57,7 +57,7 @@ class Scrapper:
         links.sort(reverse=False, key=lambda size: len(size))                   # ordena las url de mas cortas a mas largas
         return links
 
-    def __getEmails(self) -> list:
+    def getEmails(self) -> list:
         EMAIL_REGEX = r"""(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])"""
         page_source = self.driver.page_source
         emails = [re_match.group() for re_match in re.finditer(EMAIL_REGEX, page_source)]
@@ -122,9 +122,9 @@ class Scrapper:
     def getEmail(self, domain) -> list:
         try:
             self.driver.get(url=f"https://{domain}")
-            links = self.__getLinks(domain)
+            links = self.getLinks(domain)
             for link in links:
-                emails = self.__getEmails()
+                emails = self.getEmails()
                 if len(emails) != 0:
                     break
                 time.sleep(2)
@@ -147,25 +147,31 @@ class Scrapper:
             return None
 
     def goTo(self, router) -> None:
+        time.sleep(random.uniform(0.75, 1.5))
         router.click()
 
     def backTo(self) -> None:
         router = self.driver.find_element(By.XPATH, self.__CONSTANT["back_button"])
         router.click()
 
-    def getData(self) -> dict:
-        time.sleep(random.uniform(0.5, 1.5))
-        return {
-            "title" : self.getTitle(),
-            "score" : self.getScore(),
-            "num_reviews" : self.getNReviews(),
-            "tag" : self.getTag(),
-            "address" : self.getAddress(),
-            "coords" : self.getCoords(self.driver.current_url),
-            "domain" : self.getDomain(),
-            "phone" : str(self.getPhone()).replace(" ", ""),
-            "plus_code" : self.getGPCode(),
-        }
+    def getData(self, title=False, score=False,
+                num_reviews=False, tag=False, address=False, 
+                coords=False, domain=False, phone=False,
+                plus_code=False) -> dict:
+
+        time.sleep(random.uniform(0.2, 5))
+        data = {}
+        if title:       data.update({"title" : self.getTitle()})
+        if score:       data.update({"score" : self.getScore()})
+        if num_reviews: data.update({"num_reviews" : self.getNReviews()})
+        if tag:         data.update({"tag" : self.getTag()})
+        if address:     data.update({"address" : self.getAddress()})
+        if coords:      data.update({"coords" : self.getCoords(self.driver.current_url)})
+        if domain:      data.update({"domain" : self.getDomain()})
+        if phone:       data.update({"phone" : str(self.getPhone()).replace(" ", "")})
+        if plus_code:   data.update({"plus_code" : self.getGPCode()})
+
+        return data
 
     def scroll(self, current) -> int:
         links = self.driver.find_elements(By.XPATH, self.__CONSTANT["title"])
@@ -188,7 +194,13 @@ class Scrapper:
 
         return len(links)
 
-    def scrap(self, url: str) -> list:
+    def saveCollection(self, data: dict, filename="scraped", format=".json", encoding="utf-8") -> None:
+        with open(filename + format, mode="w+", encoding=encoding) as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+
+    def scrap(self, url: str, save=False, filename="scraped", format=".json", encoding="utf-8",
+              title=False, score=False, num_reviews=False, tag=False, address=False, coords=False,
+              domain=False, email=False, phone=False, plus_code=False) -> list:
         self.driver.get(url=url)    # buscar resultados para la query
         self.acceptCookies()
 
@@ -202,14 +214,19 @@ class Scrapper:
 
             if key not in list(visitados.keys()):
                 self.goTo(result)
-                visitados.update({key: self.getData()})
+                visitados.update({
+                    key: self.getData(title=title, score=score, num_reviews=num_reviews, tag=tag, address=address, coords=coords, domain=domain, phone=phone, plus_code=plus_code)})
                 print(f"{item}\t- Data collected for: {key}")
                 self.backTo()
             item += 1
         
         time.sleep(2)
 
-        for key in visitados:
-            visitados[key].update({"email": self.getEmail(visitados[key]["domain"])})
+        if email:
+            for key in visitados:
+                visitados[key].update({"email": self.getEmail(visitados[key]["domain"])})
+
+        if save:
+            self.saveCollection(visitados, filename, format, encoding)
 
         return list(visitados.values())

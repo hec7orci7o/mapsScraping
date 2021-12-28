@@ -11,8 +11,8 @@ def main()-> None:
     # query = input("query para google maps: ")
     query = "floristerias zaragoza"
     scrapper = sc.Scrapper()
-    data = scrapper.scrap(f"https://www.google.com/maps?q="+query.replace(" ", "+")+"&hl=es")
-    del scrapper
+    url = f"https://www.google.com/maps?q="+query.replace(" ", "+")+"&hl=es"
+    data = scrapper.scrap(url=url, save=True, domain=True)
     showResults(data)
 
 if __name__ == "__main__":
