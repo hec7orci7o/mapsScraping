@@ -130,6 +130,7 @@ dmypy.json
 
 # Others
 /examples
+/data
 test.py
 *.exe
 *.json

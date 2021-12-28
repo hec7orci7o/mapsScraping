@@ -4,6 +4,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import MoveTargetOutOfBoundsException
 
 class Scrapper:
     __FINDER = {
@@ -191,6 +192,8 @@ class Scrapper:
                 cResult += 1
             except NoSuchElementException:
                 return len(links)
+            except MoveTargetOutOfBoundsException:
+                return len(links)
 
         return len(links)
 
@@ -202,8 +205,11 @@ class Scrapper:
               title=False, score=False, num_reviews=False, tag=False, address=False, coords=False,
               domain=False, email=False, phone=False, plus_code=False) -> list:
         self.driver.get(url=url)    # buscar resultados para la query
-        self.acceptCookies()
-
+        try:
+            self.acceptCookies()
+        except NoSuchElementException:
+            pass
+        
         visitados = {}
         item = 1
         numResults = len(list(self.driver.find_elements(By.XPATH, self.__CONSTANT["title"])))

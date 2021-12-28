@@ -1,19 +1,19 @@
 import scrapper as sc
 import pprint
 
-def showResults(data) -> None:
-    print(f"Data collected from: {len(data)} results.")
-    x = input("Do you want to see the data? y/n: ")
-    if "y" == x.lower():
-        pprint.pprint(data)
-
 def main()-> None:
-    # query = input("query para google maps: ")
-    query = "floristerias zaragoza"
+    queries = [
+        # "floristerias zaragoza",
+        # "tiendas de ropa zaragoza",
+        # "tiendas de comida zaragoza",
+        # "cines cerca de Zaragoza",
+        "scape rooms zaragoza"
+    ]
     scrapper = sc.Scrapper()
-    url = f"https://www.google.com/maps?q="+query.replace(" ", "+")+"&hl=es"
-    data = scrapper.scrap(url=url, save=True, domain=True)
-    showResults(data)
+
+    for query in queries:
+        url = f"https://www.google.com/maps?q="+query.replace(" ", "+")+"&hl=es"
+        data = scrapper.scrap(url=url, save=True, domain=True, filename=query.replace(" ","_"))
 
 if __name__ == "__main__":
     try:
