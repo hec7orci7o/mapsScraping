@@ -1,5 +1,6 @@
 import re, json
 import scrapper as sc
+from selenium.common.exceptions import WebDriverException
 # import nltk
 # from nltk.corpus import stopwords
 
@@ -41,21 +42,24 @@ class collector:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
     def collect(self, save= False, filename="collected", format=".json", encoding="utf-8") -> None:
-        scrapper = sc.scrapper()
+        scrapper = sc.Scrapper()
 
         for i, domain in enumerate(self.domainList):
             print(f"{i + 1} - recogiendo datos de: https://{domain}")
             # Visita una nueva pagina
-            self.driver.get(url= f"https://{domain}")
+            scrapper.driver.get(url= f"https://{domain}")
             linkLinks = scrapper.getLinks(domain)                   # Recoge los links internos del dominio
             print(f"{len(linkLinks)} enlaces encontrados.")
             self.wordList.union(self.makeBag(linkLinks, domain))    # Actualiza la lista de palabras
 
             # Recorre toda la web para actualizar los pares del diccionario "resultados"
             for url in linkLinks:
-                self.driver.get(url= url)
-                emailList = scrapper.getEmails()
-                self.updateResultados(url, len(emailList) >= 1)
+                try:
+                    scrapper.driver.get(url= url)
+                    emailList = scrapper.getEmails()
+                    self.updateResultados(url, len(emailList) >= 1)
+                except WebDriverException:
+                    pass
 
         # Elimina stop-words
         # self.wordList.difference_update( self.stopWords) )
