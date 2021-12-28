@@ -33,6 +33,36 @@ class Scrapper:
     def __del__(self) -> None:
         self.driver.quit()
 
+    def __getLinks(self, domain) -> list:
+        anchors = self.driver.find_elements(By.TAG_NAME, "a")
+        def checkLink(a):
+            try:
+                return str(a.get_attribute('href'))
+            except:
+                pass
+
+        def checkPool(link):
+            try:
+                return link.find(domain) != -1
+            except:
+                pass
+
+        anchors = self.driver.find_elements(By.TAG_NAME, "a")
+        links = [checkLink(a) for a in list(anchors)]                           # consigue los enlaces
+        links = list(filter(checkPool, links))                                  # se queda con los que navega por el propio sitio web
+        links = list(filter(lambda link: re.search("^https", link), links))      # se queda con aquellos que comienzan con http evitando asi otros como: mailto, ...
+        links = list(filter(lambda link: not re.search("\?.*=", link), links))  # elimina los que tienen alguna query
+        links = list(filter(lambda link: len(link) <= 57, links))
+        links = list(set(links))
+        links.sort(reverse=False, key=lambda size: len(size))                   # ordena las url de mas cortas a mas largas
+        return links
+
+    def __getEmails(self) -> list:
+        EMAIL_REGEX = r"""(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])"""
+        page_source = self.driver.page_source
+        emails = [re_match.group() for re_match in re.finditer(EMAIL_REGEX, page_source)]
+        return list(set(emails))
+
     def acceptCookies(self) -> None:
         cookies_accept_button = self.driver.find_element(By.XPATH, self.__CONSTANT["accept_cookies"])
         cookies_accept_button.click()
@@ -89,9 +119,18 @@ class Scrapper:
         except:
             return None
 
-    def getEmail(self) -> None:
+    def getEmail(self, domain) -> list:
         try:
-            return None
+            self.driver.get(url=f"https://{domain}")
+            links = self.__getLinks(domain)
+            for link in links:
+                emails = self.__getEmails()
+                if len(emails) != 0:
+                    break
+                time.sleep(2)
+                self.driver.get(url=link)
+                
+            return emails
         except:
             return None
 
@@ -150,8 +189,8 @@ class Scrapper:
         return len(links)
 
     def scrap(self, url: str) -> list:
-        self.driver.get(url)    # buscar resultados para la query
-        self.acceptCookies()    
+        self.driver.get(url=url)    # buscar resultados para la query
+        self.acceptCookies()
 
         visitados = {}
         item = 1
@@ -167,5 +206,10 @@ class Scrapper:
                 print(f"{item}\t- Data collected for: {key}")
                 self.backTo()
             item += 1
+        
+        time.sleep(2)
+
+        for key in visitados:
+            visitados[key].update({"email": self.getEmail(visitados[key]["domain"])})
 
         return list(visitados.values())

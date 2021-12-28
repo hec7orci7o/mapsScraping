@@ -8,7 +8,8 @@ def showResults(data) -> None:
         pprint.pprint(data)
 
 def main()-> None:
-    query = input("query para google maps: ")
+    # query = input("query para google maps: ")
+    query = "floristerias zaragoza"
     scrapper = sc.Scrapper()
     data = scrapper.scrap(f"https://www.google.com/maps?q="+query.replace(" ", "+")+"&hl=es")
     del scrapper
