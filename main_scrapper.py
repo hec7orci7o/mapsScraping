@@ -3,17 +3,15 @@ import pprint
 
 def main()-> None:
     queries = [
-        # "floristerias zaragoza",
-        # "tiendas de ropa zaragoza",
-        # "tiendas de comida zaragoza",
-        # "cines cerca de Zaragoza",
-        "scape rooms zaragoza"
+        "floristerias zaragoza",
     ]
     scrapper = sc.Scrapper()
 
     for query in queries:
         url = f"https://www.google.com/maps?q="+query.replace(" ", "+")+"&hl=es"
-        data = scrapper.scrap(url=url, save=True, domain=True, filename=query.replace(" ","_"))
+        data = scrapper.scrap(url=url, save=True, filename=query.replace(" ","_"),
+                    title=True, score=True, num_reviews=True, tag=True, address=True, coords=True,
+                    domain=True, email=True, phone=True, plus_code=True)
 
 if __name__ == "__main__":
     try:

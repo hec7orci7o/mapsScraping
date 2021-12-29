@@ -3,8 +3,9 @@ import mathematics
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import NoSuchElementException
-from selenium.common.exceptions import MoveTargetOutOfBoundsException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, MoveTargetOutOfBoundsException
 
 class Scrapper:
     __FINDER = {
@@ -21,7 +22,7 @@ class Scrapper:
     __CONSTANT = {
         "accept_cookies": "//button[contains(.,'Acepto')]",
         "back_button":"//button[@aria-label='Atrás']",
-        "container": "//div[@class='V0h1Ob-haAclf OPZbO-KE6vqe o0s21d-HiaYvf']", # contenedor del resultado
+        "container_type1": "//div[@class='V0h1Ob-haAclf OPZbO-KE6vqe o0s21d-HiaYvf']", # contenedor del resultado
         "title": "//div[@class='qBF1Pd gm2-subtitle-alt-1']",                    # nombre que identifica al resultado
     }
 
@@ -34,24 +35,35 @@ class Scrapper:
     def __del__(self) -> None:
         self.driver.quit()
 
+    def __createKey(self, title: str) -> str:
+        for v1, v2 in [("á","a"),("é","e"),("í","i"),("ó","o"),("ú","u")]:
+            title = title.replace(v1, v2)
+        
+        title = re.sub("[^\w]", " ", title)
+        title = re.sub("\s+", " ", title)
+        
+        return title.lower()
+
     def getLinks(self, domain) -> list:
-        anchors = self.driver.find_elements(By.TAG_NAME, "a")
+        try:
+            anchors = WebDriverWait(self.driver, 5).until(
+                EC.presence_of_all_elements_located((By.TAG_NAME, "a"))
+            )
+        except TimeoutException:
+            pass
+
         def checkLink(a):
-            try:
-                return str(a.get_attribute('href'))
-            except:
-                pass
+            try:    return str(a.get_attribute('href'))
+            except: pass
 
         def checkPool(link):
-            try:
-                return link.find(domain) != -1
-            except:
-                pass
+            try:    return link.find(domain) != -1
+            except: pass
 
         anchors = self.driver.find_elements(By.TAG_NAME, "a")
         links = [checkLink(a) for a in list(anchors)]                           # consigue los enlaces
         links = list(filter(checkPool, links))                                  # se queda con los que navega por el propio sitio web
-        links = list(filter(lambda link: re.search("^https", link), links))      # se queda con aquellos que comienzan con http evitando asi otros como: mailto, ...
+        links = list(filter(lambda link: re.search("^https", link), links))     # se queda con aquellos que comienzan con http evitando asi otros como: mailto, ...
         links = list(filter(lambda link: not re.search("\?.*=", link), links))  # elimina los que tienen alguna query
         links = list(filter(lambda link: len(link) <= 57, links))
         links = list(set(links))
@@ -62,42 +74,69 @@ class Scrapper:
         EMAIL_REGEX = r"""(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])"""
         page_source = self.driver.page_source
         emails = [re_match.group() for re_match in re.finditer(EMAIL_REGEX, page_source)]
-        return list(set(emails))
+        def check(email):
+            EMAIL_REGEX = r"[^\w]+"
+            try:
+                p1, p2 = email.split("@")
+                return not(len(re.findall(EMAIL_REGEX, p1)) >= 1)
+            except: 
+                return False
+
+        return list(set(filter(check, emails)))
 
     def acceptCookies(self) -> None:
-        cookies_accept_button = self.driver.find_element(By.XPATH, self.__CONSTANT["accept_cookies"])
-        cookies_accept_button.click()
+        try:
+            cookies_accept_button = WebDriverWait(self.driver, 5).until(
+                EC.presence_of_element_located((By.XPATH, self.__CONSTANT["accept_cookies"]))
+            )
+            cookies_accept_button.click()
+        except NoSuchElementException or TimeoutException:
+            pass
 
     def getTitle(self) -> str:
         try:
-            return self.driver.find_element(By.XPATH, self.__FINDER["title"]).text
-        except:
+            element = WebDriverWait(self.driver, 5).until(
+                EC.presence_of_element_located((By.XPATH, self.__FINDER["title"]))
+            )
+            return element.text
+        except TimeoutException:
             return None
 
     def getScore(self) -> float:
         try:
-            return float(self.driver.find_element(By.XPATH, self.__FINDER["score"]).text.replace(",","."))
-        except:
+            element = WebDriverWait(self.driver, 5).until(
+                EC.presence_of_element_located((By.XPATH, self.__FINDER["score"]))
+            )
+            return float(element.text.replace(",","."))
+        except TimeoutException:
             return None
     
     def getNReviews(self) -> int:
         try:
-            x = self.driver.find_element(By.XPATH, self.__FINDER["num_reviews"]).text
-            lista = re.findall("\d+", x)
+            element = WebDriverWait(self.driver, 5).until(
+                EC.presence_of_element_located((By.XPATH, self.__FINDER["num_reviews"]))
+            )
+            lista = re.findall("\d+", element.text)
             return int(lista[0])
         except:
             return None
 
     def getTag(self) -> str:
         try:
-            return self.driver.find_element(By.XPATH, self.__FINDER["tag"]).text
-        except:
+            element = WebDriverWait(self.driver, 5).until(
+                EC.presence_of_element_located((By.XPATH, self.__FINDER["tag"]))
+            )
+            return element.text
+        except TimeoutException:
             return None
 
     def getAddress(self) -> str:
         try:
-            return self.driver.find_element(By.XPATH, self.__FINDER["address"]).text
-        except:
+            element = WebDriverWait(self.driver, 5).until(
+                EC.presence_of_element_located((By.XPATH, self.__FINDER["address"]))
+            )
+            return element.text
+        except TimeoutException:
             return None
 
     def getCoords(self, url) -> tuple:
@@ -110,14 +149,20 @@ class Scrapper:
     
     def getDomain(self) -> str:
         try:
-            return self.driver.find_element(By.XPATH, self.__FINDER["domain"]).text
-        except:
+            element = WebDriverWait(self.driver, 5).until(
+                EC.presence_of_element_located((By.XPATH, self.__FINDER["domain"]))
+            )
+            return element.text
+        except TimeoutException:
             return None
     
     def getPhone(self) -> str:
         try:
-            return self.driver.find_element(By.XPATH, self.__FINDER["phone"]).text
-        except:
+            element = WebDriverWait(self.driver, 5).until(
+                EC.presence_of_element_located((By.XPATH, self.__FINDER["phone"]))
+            )
+            return element.text
+        except TimeoutException:
             return None
 
     def getEmail(self, domain) -> list:
@@ -137,8 +182,11 @@ class Scrapper:
 
     def getGPCode(self) -> str:
         try:
-            return self.driver.find_element(By.XPATH, self.__FINDER["plus_code"]).text
-        except:
+            element = WebDriverWait(self.driver, 5).until(
+                EC.presence_of_element_located((By.XPATH, self.__FINDER["plus_code"]))
+            )
+            return element.text
+        except TimeoutException:
             return None
 
     def getRHour(self) -> None:
@@ -146,14 +194,6 @@ class Scrapper:
             return None
         except:
             return None
-
-    def goTo(self, router) -> None:
-        time.sleep(random.uniform(0.75, 1.5))
-        router.click()
-
-    def backTo(self) -> None:
-        router = self.driver.find_element(By.XPATH, self.__CONSTANT["back_button"])
-        router.click()
 
     def getData(self, title=False, score=False,
                 num_reviews=False, tag=False, address=False, 
@@ -174,13 +214,24 @@ class Scrapper:
 
         return data
 
+    def goTo(self, router) -> None:
+        time.sleep(random.uniform(0.75, 1.5))
+        router.click()
+
+    def backTo(self) -> None:
+        try:
+            router = WebDriverWait(self.driver, 5).until(
+                EC.element_to_be_clickable((By.XPATH, self.__CONSTANT["back_button"]))
+            )
+            router.click()
+        except TimeoutException:
+            pass
+
     def scroll(self, current) -> int:
         links = self.driver.find_elements(By.XPATH, self.__CONSTANT["title"])
         cResult = 1 # resultado actual
-
+        time.sleep(0.1)
         while current >= len(links):
-            # time.sleep(mathematics.calc(current))
-            time.sleep(0.1)
             try:
                 result = self.driver.find_element(By.XPATH, "(" + self.__CONSTANT["title"] + ")" + f"[{cResult}]")
                 actions = ActionChains(self.driver)
@@ -205,18 +256,22 @@ class Scrapper:
               title=False, score=False, num_reviews=False, tag=False, address=False, coords=False,
               domain=False, email=False, phone=False, plus_code=False) -> list:
         self.driver.get(url=url)    # buscar resultados para la query
-        try:
-            self.acceptCookies()
-        except NoSuchElementException:
-            pass
+        self.acceptCookies()
         
         visitados = {}
         item = 1
         numResults = len(list(self.driver.find_elements(By.XPATH, self.__CONSTANT["title"])))
         while item <= numResults:
             numResults = self.scroll(item)
-            result = self.driver.find_element(By.XPATH,  "(" + self.__CONSTANT["container"] + ")" + f"[{item}]")
-            key = str(self.driver.find_element(By.XPATH, "(" + self.__CONSTANT["title"] + ")" + f"[{item}]").text).capitalize()
+            try:
+                # Busca los elementos para poder desplazarse
+                result = WebDriverWait(self.driver, 5).until(
+                    EC.presence_of_element_located((By.XPATH, "(" + self.__CONSTANT["container_type1"] + ")" + f"[{item}]"))
+                )
+                # Busca el titulo del elemento para evitar busquedas repetidas en el futuro
+                key = self.__createKey(self.driver.find_element(By.XPATH, "(" + self.__CONSTANT["title"] + ")" + f"[{item}]").text)
+            except TimeoutException:
+                break
 
             if key not in list(visitados.keys()):
                 self.goTo(result)
@@ -225,12 +280,11 @@ class Scrapper:
                 print(f"{item}\t- Data collected for: {key}")
                 self.backTo()
             item += 1
-        
-        time.sleep(2)
 
         if email:
             for key in visitados:
-                visitados[key].update({"email": self.getEmail(visitados[key]["domain"])})
+                if visitados[key]["domain"] != None:
+                    visitados[key].update({"email": self.getEmail(visitados[key]["domain"])})
 
         if save:
             self.saveCollection(visitados, filename, format, encoding)
