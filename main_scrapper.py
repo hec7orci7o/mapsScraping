@@ -1,5 +1,4 @@
 import scrapper as sc
-import pprint
 
 def main()-> None:
     queries = [
