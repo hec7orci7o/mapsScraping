@@ -4,6 +4,7 @@ import pprint
 def main()-> None:
     queries = [
         "floristerias zaragoza",
+        "veterinarios zaragoza",
     ]
     scrapper = sc.Scrapper()
 

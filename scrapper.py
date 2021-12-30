@@ -1,4 +1,4 @@
-import time, re, random, json
+import time, re, random, json, Levenshtein, sys
 import mathematics
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -22,14 +22,27 @@ class Scrapper:
     __CONSTANT = {
         "accept_cookies": "//button[contains(.,'Acepto')]",
         "back_button":"//button[@aria-label='Atrás']",
-        "container_type1": "//div[@class='V0h1Ob-haAclf OPZbO-KE6vqe o0s21d-HiaYvf']", # contenedor del resultado
-        "title": "//div[@class='qBF1Pd gm2-subtitle-alt-1']",                    # nombre que identifica al resultado
+        "container":"//div[contains(@class, 'V0h1Ob-haAclf')]",                           # contenedor generico
+        # "container_type1": "//div[@class='V0h1Ob-haAclf OPZbO-KE6vqe o0s21d-HiaYvf']",  # contenedor del resultado <- img[imagen]
+        # "container_type2": "//div[@class='V0h1Ob-haAclf gd9aEe-LQLjdd OPZbO-KE6vqe']",  # contenedor del resultado <- button[sitio-web, como-llegar]
+        "title": "//div[@class='qBF1Pd gm2-subtitle-alt-1']",                             # nombre que identifica al resultado
     }
+
+    __FILTER_WORDS = [
+        "contactanos", "contacto", "contactenos", "contact",
+        "condiciones", "devoluciones", "cambios", "refund", 
+        "nosotros", "about", "aviso", "terms", "conditions", 
+        "legal", "service", "trabajar", "politica", "policy",
+        "cookies", "privacidad", "preguntas", "frecuentes", 
+        "faq", "garantia", "quienes", "somos", "ayuda"
+    ]
+
+    __MAX_INTENTOS = 5  # Maximo numero de paginas que puede intentar visitar hasta conseguir un email
+    __MAX_WAIT     = 3  # Maximos segundos que puede esperar antes de tirar un TimeoutException al buscar un elemento
 
     def __init__(self, headless= False) -> None:
         firefox_options = webdriver.FirefoxOptions()
-        if headless:
-            firefox_options.headless = True
+        if headless: firefox_options.headless = True
         self.driver = webdriver.Firefox(options=firefox_options)
 
     def __del__(self) -> None:
@@ -43,6 +56,26 @@ class Scrapper:
         title = re.sub("\s+", " ", title)
         
         return title.lower()
+
+    def getWords(self, url: str, domain: str) -> list:
+        try:
+            words = re.sub(f"^(.+://)?(www.)?{domain}/?", "", url)
+            words = re.sub(f"[^\w]", " ", words).rstrip()
+            return words.split(" ")
+        except:
+            return []
+
+    def getWeight(self, url: str, domain: str) -> int:
+        peso = 0
+        for word in self.getWords(url, domain):
+            pesos = [Levenshtein.distance(word.lower(), key.lower()) for key in self.__FILTER_WORDS]
+            peso += min(pesos)
+        return peso
+
+    def getWlinks(self, links: list, domain: str) -> list:
+        weightedUrls = [(str(url), self.getWeight(url, domain)) for url in links]
+        weightedUrls.sort(key = lambda x: x[1], reverse=False)
+        return weightedUrls
 
     def getLinks(self, domain) -> list:
         try:
@@ -67,7 +100,7 @@ class Scrapper:
         links = list(filter(lambda link: not re.search("\?.*=", link), links))  # elimina los que tienen alguna query
         links = list(filter(lambda link: len(link) <= 57, links))
         links = list(set(links))
-        links.sort(reverse=False, key=lambda size: len(size))                   # ordena las url de mas cortas a mas largas
+        links = self.getWlinks(links, domain)                                   # ordena las url usando la distancia de Levenshtein
         return links
 
     def getEmails(self) -> list:
@@ -85,17 +118,14 @@ class Scrapper:
         return list(set(filter(check, emails)))
 
     def acceptCookies(self) -> None:
-        try:
-            cookies_accept_button = WebDriverWait(self.driver, 5).until(
-                EC.presence_of_element_located((By.XPATH, self.__CONSTANT["accept_cookies"]))
-            )
-            cookies_accept_button.click()
-        except NoSuchElementException or TimeoutException:
-            pass
+        cookies_accept_button = WebDriverWait(self.driver, self.__MAX_WAIT).until(
+            EC.presence_of_element_located((By.XPATH, self.__CONSTANT["accept_cookies"]))
+        )
+        cookies_accept_button.click()
 
     def getTitle(self) -> str:
         try:
-            element = WebDriverWait(self.driver, 5).until(
+            element = WebDriverWait(self.driver, self.__MAX_WAIT).until(
                 EC.presence_of_element_located((By.XPATH, self.__FINDER["title"]))
             )
             return element.text
@@ -104,7 +134,7 @@ class Scrapper:
 
     def getScore(self) -> float:
         try:
-            element = WebDriverWait(self.driver, 5).until(
+            element = WebDriverWait(self.driver, self.__MAX_WAIT).until(
                 EC.presence_of_element_located((By.XPATH, self.__FINDER["score"]))
             )
             return float(element.text.replace(",","."))
@@ -113,7 +143,7 @@ class Scrapper:
     
     def getNReviews(self) -> int:
         try:
-            element = WebDriverWait(self.driver, 5).until(
+            element = WebDriverWait(self.driver, self.__MAX_WAIT).until(
                 EC.presence_of_element_located((By.XPATH, self.__FINDER["num_reviews"]))
             )
             lista = re.findall("\d+", element.text)
@@ -123,7 +153,7 @@ class Scrapper:
 
     def getTag(self) -> str:
         try:
-            element = WebDriverWait(self.driver, 5).until(
+            element = WebDriverWait(self.driver, self.__MAX_WAIT).until(
                 EC.presence_of_element_located((By.XPATH, self.__FINDER["tag"]))
             )
             return element.text
@@ -132,7 +162,7 @@ class Scrapper:
 
     def getAddress(self) -> str:
         try:
-            element = WebDriverWait(self.driver, 5).until(
+            element = WebDriverWait(self.driver, self.__MAX_WAIT).until(
                 EC.presence_of_element_located((By.XPATH, self.__FINDER["address"]))
             )
             return element.text
@@ -149,7 +179,7 @@ class Scrapper:
     
     def getDomain(self) -> str:
         try:
-            element = WebDriverWait(self.driver, 5).until(
+            element = WebDriverWait(self.driver, self.__MAX_WAIT).until(
                 EC.presence_of_element_located((By.XPATH, self.__FINDER["domain"]))
             )
             return element.text
@@ -158,7 +188,7 @@ class Scrapper:
     
     def getPhone(self) -> str:
         try:
-            element = WebDriverWait(self.driver, 5).until(
+            element = WebDriverWait(self.driver, self.__MAX_WAIT).until(
                 EC.presence_of_element_located((By.XPATH, self.__FINDER["phone"]))
             )
             return element.text
@@ -169,10 +199,12 @@ class Scrapper:
         try:
             self.driver.get(url=f"https://{domain}")
             links = self.getLinks(domain)
+            intento = 0
             for link in links:
                 emails = self.getEmails()
-                if len(emails) != 0:
+                if len(emails) != 0 or intento == self.__MAX_INTENTOS:
                     break
+                intento += 1
                 time.sleep(2)
                 self.driver.get(url=link)
                 
@@ -182,7 +214,7 @@ class Scrapper:
 
     def getGPCode(self) -> str:
         try:
-            element = WebDriverWait(self.driver, 5).until(
+            element = WebDriverWait(self.driver, self.__MAX_WAIT).until(
                 EC.presence_of_element_located((By.XPATH, self.__FINDER["plus_code"]))
             )
             return element.text
@@ -256,8 +288,10 @@ class Scrapper:
               title=False, score=False, num_reviews=False, tag=False, address=False, coords=False,
               domain=False, email=False, phone=False, plus_code=False) -> list:
         self.driver.get(url=url)    # buscar resultados para la query
-        self.acceptCookies()
-        
+        try:
+            self.acceptCookies()
+        except:
+            pass
         visitados = {}
         item = 1
         numResults = len(list(self.driver.find_elements(By.XPATH, self.__CONSTANT["title"])))
@@ -266,7 +300,7 @@ class Scrapper:
             try:
                 # Busca los elementos para poder desplazarse
                 result = WebDriverWait(self.driver, 5).until(
-                    EC.presence_of_element_located((By.XPATH, "(" + self.__CONSTANT["container_type1"] + ")" + f"[{item}]"))
+                    EC.presence_of_element_located((By.XPATH, "(" + self.__CONSTANT["container"] + ")" + f"[{item}]"))
                 )
                 # Busca el titulo del elemento para evitar busquedas repetidas en el futuro
                 key = self.__createKey(self.driver.find_element(By.XPATH, "(" + self.__CONSTANT["title"] + ")" + f"[{item}]").text)
@@ -280,6 +314,7 @@ class Scrapper:
                 print(f"{item}\t- Data collected for: {key}")
                 self.backTo()
             item += 1
+            break
 
         if email:
             for key in visitados:

@@ -19,10 +19,9 @@ class collector:
         try:
             words = re.sub(f"^(.+://)?(www.)?{domain}/?", "", url)
             words = re.sub(f"[^\w]", " ", words).rstrip()
+            return words.split(" ")
         except:
             return []
-
-        return words.split(" ")
 
     def makeBag(self, links: list, domain: str) -> set:
         bag = set()
