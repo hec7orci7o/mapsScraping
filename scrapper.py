@@ -309,8 +309,10 @@ class Scrapper:
                 self.goTo(result)
                 visitados.update({
                     key: self.getData(title=title, score=score, num_reviews=num_reviews, tag=tag, address=address, coords=coords, domain=domain, phone=phone, plus_code=plus_code)})
-                print(f"{item}\t- Data collected for: {key}")
+                print(f"{item}".rjust(4), "- ✅ data successfully collected.", "KEY: " + "\33[0;32;40m" + f"{key}" + "\33[0m")
                 self.backTo()
+            else:
+                print(f"{item}".rjust(4), "- ❌ data already collected.     ", "KEY: " + "\33[0;31;40m" + f"{key}" + "\33[0m")
             item += 1
 
         if email:
