@@ -1,4 +1,6 @@
-import time, re, random, json, Levenshtein
+import re, json, Levenshtein
+# from hashlib import sha1
+from time import sleep
 from timeit import default_timer
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -42,9 +44,18 @@ class Scrapper:
         firefox_options = webdriver.FirefoxOptions()
         if headless: firefox_options.headless = True
         self.driver = webdriver.Firefox(options=firefox_options)
+        self.chest = {}
 
     def __del__(self) -> None:
         self.driver.quit()
+
+    def __loadBar(self, iteration, total, prefix="", suffix="", decimals=1, length=100, fill=">"):
+        percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+        filledLengh = int(length * iteration // total)
+        bar = fill * filledLengh + "-" * (length - filledLengh)
+        print(f"\r{prefix} | {bar}| {percent}% {suffix}", end="\r")
+        if iteration == total:
+            print()
 
     def __createKey(self, title: str) -> str:
         for v1, v2 in [("á","a"),("é","e"),("í","i"),("ó","o"),("ú","u")]:
@@ -203,7 +214,7 @@ class Scrapper:
                 if len(emails) != 0 or intento == self.__MAX_INTENTOS:
                     break
                 intento += 1
-                time.sleep(2)
+                sleep(2)
                 self.driver.get(url=link)
                 
             return emails
@@ -242,10 +253,6 @@ class Scrapper:
 
         return data
 
-    def goTo(self, router) -> None:
-        time.sleep(random.uniform(0.75, 1.5))
-        router.click()
-
     def backTo(self) -> None:
         try:
             router = WebDriverWait(self.driver, self.__MAX_WAIT).until(
@@ -255,10 +262,9 @@ class Scrapper:
         except TimeoutException:
             pass
 
-    def scroll(self, current) -> int:
+    def scroll(self, current: int) -> int:
         links = self.driver.find_elements(By.XPATH, self.__CONSTANT["title"])
         cResult = 1 # resultado actual
-        time.sleep(0.1)
         while current >= len(links):
             try:
                 result = self.driver.find_element(By.XPATH, "(" + self.__CONSTANT["title"] + ")" + f"[{cResult}]")
@@ -276,21 +282,42 @@ class Scrapper:
 
         return len(links)
 
+    def __makeHeader(self, fields: list, sep= ";") -> str:
+        header = ""
+        for field in fields:
+            header += field + f"{sep} "
+        return header[:-2]
+
     def saveCollection(self, data: dict, filename="scraped", format=".json", encoding="utf-8") -> None:
         with open(filename + format, mode="w+", encoding=encoding) as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
+            try:
+                if format == ".json":
+                    json.dump(data, f, ensure_ascii=False, indent=4)
+                elif format == ".csv":
+                    header = ["title", "score", "num_reviews", "tag", "address", "coords", "domain", "phone", "plus_code", "email"]
+                    sep = ";"
+
+                    f.write(self.__makeHeader(header, sep))
+                    f.write("\n")
+                    for identifier in data:
+                        for key in data[identifier]:
+                            f.write( str(data[identifier][key]) + f"{sep}" )
+                        f.write("\n")
+            except:
+                print("El formato debe ser: .json | .csv")
+                self.saveCollection(data, filename="scraped", format=".json", encoding="utf-8")
+                self.saveCollection(data, filename="scraped", format=".csv", encoding="utf-8")
 
     def scrap(self, url: str, save=False, filename="scraped", format=".json", encoding="utf-8",
               title=False, score=False, num_reviews=False, tag=False, address=False, coords=False,
-              domain=False, email=False, phone=False, plus_code=False) -> list:
+              domain=False, email=False, phone=False, plus_code=False, group=False) -> list:
         print("Searching results for: " + "\33[0;35;40m" + filename.replace("_", " ") + "\33[0m")
         inicioScrap = default_timer()
         self.driver.get(url=url)    # buscar resultados para la query
-        try:
-            self.acceptCookies()
-        except:
-            pass
-        visitados = {}
+        try:    self.acceptCookies()
+        except: pass
+
+        if not group: self.chest = {}
         item = 1
         numResults = len(list(self.driver.find_elements(By.XPATH, self.__CONSTANT["title"])))
         while item <= numResults:
@@ -306,9 +333,10 @@ class Scrapper:
             
             # Busca el titulo del elemento para evitar busquedas repetidas en el futuro
             key = self.__createKey(self.driver.find_element(By.XPATH, "(" + self.__CONSTANT["title"] + ")" + f"[{item}]").text)
-            if key not in list(visitados.keys()):
-                self.goTo(result)
-                visitados.update({key: self.getData(title=title, score=score, num_reviews=num_reviews, tag=tag, address=address, coords=coords, domain=domain, phone=phone, plus_code=plus_code)})
+            # key = str(self.__createKey(self.driver.find_element(By.XPATH, "(" + self.__CONSTANT["title"] + ")" + f"[{item}]").text)).encode()
+            # key = sha1(key).hexdigest()
+            if key not in list(self.chest.keys()):
+                self.chest.update({key: self.getData(title=title, score=score, num_reviews=num_reviews, tag=tag, address=address, coords=coords, domain=domain, phone=phone, plus_code=plus_code)})
                 fin = default_timer()
                 print(f"{item}".rjust(4), "- ✅ data successfully collected.", "\33[0;36;40m" + "KEY: " + "\33[0m" + "\33[0;32;40m" + f"{key[:40]}".ljust(40) + "\33[0m" + "\33[0;32;40m" + "\33[0;36;40m" + " TIME: " + "\33[0m" + F"{fin - inicio:.2f}s".rjust(5))
                 self.backTo()
@@ -317,15 +345,19 @@ class Scrapper:
             item += 1
 
         if email:
-            for key in visitados:
-                if visitados[key]["domain"] != None:
-                    visitados[key].update({"email": self.getEmail(visitados[key]["domain"])})
+            print("Seeking emails...")
+            length = len(list(self.chest.keys()))
+            self.__loadBar(0, length, prefix="Progress:", suffix="Complete", length=length)
+            for i, key in enumerate(self.chest):
+                if self.chest[key]["domain"] != None:
+                    self.chest[key].update({"email": self.getEmail(self.chest[key]["domain"])})
+                self.__loadBar(i + 1, length, prefix="Progress:", suffix="Complete", length=length)
 
-        if save:
-            self.saveCollection(visitados, filename, format, encoding)
+        # Guarda los datos encontrados en un json o csv
+        if save: self.saveCollection(self.chest, filename, format, encoding)
 
         finScrap = default_timer()
-        print(f"Total results achieved: {len(visitados)}")
+        print(f"Total results achieved: {len(self.chest)}")
         print(f"Total elapsed time: {(finScrap - inicioScrap) / 60:.2f}m", end="\n\n")
 
-        return list(visitados.values())
+        return list(self.chest.values())
