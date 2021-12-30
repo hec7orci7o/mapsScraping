@@ -22,10 +22,8 @@ class Scrapper:
     __CONSTANT = {
         "accept_cookies": "//button[contains(.,'Acepto')]",
         "back_button":"//button[@aria-label='Atrás']",
-        "container":"//div[contains(@class, 'V0h1Ob-haAclf')]",                           # contenedor generico
-        # "container_type1": "//div[@class='V0h1Ob-haAclf OPZbO-KE6vqe o0s21d-HiaYvf']",  # contenedor del resultado <- img[imagen]
-        # "container_type2": "//div[@class='V0h1Ob-haAclf gd9aEe-LQLjdd OPZbO-KE6vqe']",  # contenedor del resultado <- button[sitio-web, como-llegar]
-        "title": "//div[@class='qBF1Pd gm2-subtitle-alt-1']",                             # nombre que identifica al resultado
+        "container":"//div[contains(@class, 'V0h1Ob-haAclf') and contains(@class, 'OPZbO-KE6vqe')]", # contenedor generico
+        "title": "//div[@class='qBF1Pd gm2-subtitle-alt-1']",                               # nombre que identifica al resultado
     }
 
     __FILTER_WORDS = [
@@ -302,11 +300,11 @@ class Scrapper:
                 result = WebDriverWait(self.driver, 5).until(
                     EC.presence_of_element_located((By.XPATH, "(" + self.__CONSTANT["container"] + ")" + f"[{item}]"))
                 )
-                # Busca el titulo del elemento para evitar busquedas repetidas en el futuro
-                key = self.__createKey(self.driver.find_element(By.XPATH, "(" + self.__CONSTANT["title"] + ")" + f"[{item}]").text)
             except TimeoutException:
                 break
-
+            
+            # Busca el titulo del elemento para evitar busquedas repetidas en el futuro
+            key = self.__createKey(self.driver.find_element(By.XPATH, "(" + self.__CONSTANT["title"] + ")" + f"[{item}]").text)
             if key not in list(visitados.keys()):
                 self.goTo(result)
                 visitados.update({
@@ -314,7 +312,6 @@ class Scrapper:
                 print(f"{item}\t- Data collected for: {key}")
                 self.backTo()
             item += 1
-            break
 
         if email:
             for key in visitados:
