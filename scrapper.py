@@ -1,4 +1,5 @@
 import time, re, random, json, Levenshtein
+from timeit import default_timer
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
@@ -228,8 +229,6 @@ class Scrapper:
                 num_reviews=False, tag=False, address=False, 
                 coords=False, domain=False, phone=False,
                 plus_code=False) -> dict:
-
-        time.sleep(random.uniform(0.2, 5))
         data = {}
         if title:       data.update({"title" : self.getTitle()})
         if score:       data.update({"score" : self.getScore()})
@@ -249,7 +248,7 @@ class Scrapper:
 
     def backTo(self) -> None:
         try:
-            router = WebDriverWait(self.driver, 5).until(
+            router = WebDriverWait(self.driver, self.__MAX_WAIT).until(
                 EC.element_to_be_clickable((By.XPATH, self.__CONSTANT["back_button"]))
             )
             router.click()
@@ -284,6 +283,8 @@ class Scrapper:
     def scrap(self, url: str, save=False, filename="scraped", format=".json", encoding="utf-8",
               title=False, score=False, num_reviews=False, tag=False, address=False, coords=False,
               domain=False, email=False, phone=False, plus_code=False) -> list:
+        print("Searching results for: " + "\33[0;35;40m" + filename.replace("_", " ") + "\33[0m")
+        inicioScrap = default_timer()
         self.driver.get(url=url)    # buscar resultados para la query
         try:
             self.acceptCookies()
@@ -293,10 +294,11 @@ class Scrapper:
         item = 1
         numResults = len(list(self.driver.find_elements(By.XPATH, self.__CONSTANT["title"])))
         while item <= numResults:
+            inicio = default_timer()
             numResults = self.scroll(item)
             try:
                 # Busca los elementos para poder desplazarse
-                result = WebDriverWait(self.driver, 5).until(
+                result = WebDriverWait(self.driver, self.__MAX_WAIT).until(
                     EC.presence_of_element_located((By.XPATH, "(" + self.__CONSTANT["container"] + ")" + f"[{item}]"))
                 )
             except TimeoutException:
@@ -306,12 +308,12 @@ class Scrapper:
             key = self.__createKey(self.driver.find_element(By.XPATH, "(" + self.__CONSTANT["title"] + ")" + f"[{item}]").text)
             if key not in list(visitados.keys()):
                 self.goTo(result)
-                visitados.update({
-                    key: self.getData(title=title, score=score, num_reviews=num_reviews, tag=tag, address=address, coords=coords, domain=domain, phone=phone, plus_code=plus_code)})
-                print(f"{item}".rjust(4), "- ✅ data successfully collected.", "KEY: " + "\33[0;32;40m" + f"{key}" + "\33[0m")
+                visitados.update({key: self.getData(title=title, score=score, num_reviews=num_reviews, tag=tag, address=address, coords=coords, domain=domain, phone=phone, plus_code=plus_code)})
+                fin = default_timer()
+                print(f"{item}".rjust(4), "- ✅ data successfully collected.", "\33[0;36;40m" + "KEY: " + "\33[0m" + "\33[0;32;40m" + f"{key[:40]}".ljust(40) + "\33[0m" + "\33[0;32;40m" + "\33[0;36;40m" + " TIME: " + "\33[0m" + F"{fin - inicio:.2f}s".rjust(5))
                 self.backTo()
             else:
-                print(f"{item}".rjust(4), "- ❌ data already collected.     ", "KEY: " + "\33[0;31;40m" + f"{key}" + "\33[0m")
+                print(f"{item}".rjust(4), "- ❌ data already collected.     ", "\33[0;36;40m" + "KEY: " + "\33[0m" + "\33[0;31;40m" + f"{key}" + "\33[0m")
             item += 1
 
         if email:
@@ -321,5 +323,9 @@ class Scrapper:
 
         if save:
             self.saveCollection(visitados, filename, format, encoding)
+
+        finScrap = default_timer()
+        print(f"Total results achieved: {len(visitados)}")
+        print(f"Total elapsed time: {(finScrap - inicioScrap) / 60:.2f}m", end="\n\n")
 
         return list(visitados.values())
