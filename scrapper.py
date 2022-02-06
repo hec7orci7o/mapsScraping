@@ -1,13 +1,15 @@
-import re, json, Levenshtein
-# from hashlib import sha1
+import re, json, random, Levenshtein
 from time import sleep
 from timeit import default_timer
 from selenium import webdriver
+from selenium.webdriver.common.proxy import Proxy, ProxyType
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, MoveTargetOutOfBoundsException
+from random_user_agent.user_agent import UserAgent
+from random_user_agent.params import SoftwareName, OperatingSystem
 
 class Scrapper:
     __FINDER = {
@@ -40,13 +42,35 @@ class Scrapper:
     __MAX_INTENTOS = 5  # Maximo numero de paginas que puede intentar visitar hasta conseguir un email
     __MAX_WAIT     = 3  # Maximos segundos que puede esperar antes de tirar un TimeoutException al buscar un elemento
 
-    def __init__(self, headless= False) -> None:
+    def __init__(self, myAgent, myProxy, headless=False) -> None:
+        # Proxy configuration
+        proxy = Proxy() # https://proxyscrape.com/free-proxy-list # https://hidemy.name/en/proxy-list/
+        proxy.proxy_type = ProxyType.MANUAL
+        proxy.autodetect = False
+        proxy.http_proxy = myProxy
+        proxy.ssl_proxy = myProxy
+        capabilities = webdriver.DesiredCapabilities.FIREFOX
+        proxy.add_to_capabilities(capabilities)
+
+        # Agent Configuration
+        if myAgent == None:
+            software_names = [SoftwareName.FIREFOX.value]
+            operating_systems = [OperatingSystem.WINDOWS.value, OperatingSystem.LINUX.value]   
+            user_agent_rotator = UserAgent(software_names=software_names, operating_systems=operating_systems, limit=100)
+            # Get Random User Agent String.
+            myAgent = user_agent_rotator.get_random_user_agent()
+
+        # Headers configuration
         firefox_options = webdriver.FirefoxOptions()
+        firefox_options.set_preference("general.useragent.override", myAgent)   # https://gist.github.com/pzb/b4b6f57144aea7827ae4
         if headless: firefox_options.headless = True
-        self.driver = webdriver.Firefox(options=firefox_options)
+        
+        # Driver set-up
+        self.driver = webdriver.Firefox(options=firefox_options, desired_capabilities=capabilities)
         self.chest = {}
 
     def __del__(self) -> None:
+        self.driver.delete_all_cookies()
         self.driver.quit()
 
     def __loadBar(self, iteration, total, prefix="", suffix="", decimals=1, length=100, fill=">"):
@@ -209,12 +233,12 @@ class Scrapper:
             self.driver.get(url=f"https://{domain}")
             links = self.getLinks(domain)
             intento = 0
-            for link in links:
+            for link, p in links:
                 emails = self.getEmails()
                 if len(emails) != 0 or intento == self.__MAX_INTENTOS:
                     break
                 intento += 1
-                sleep(2)
+                sleep(random.uniform(0.5, 1))
                 self.driver.get(url=link)
                 
             return emails
@@ -253,6 +277,10 @@ class Scrapper:
 
         return data
 
+    def goTo(self, router) -> None:
+        sleep(random.uniform(0.5, 1))
+        router.click()
+
     def backTo(self) -> None:
         try:
             router = WebDriverWait(self.driver, self.__MAX_WAIT).until(
@@ -267,6 +295,7 @@ class Scrapper:
         cResult = 1 # resultado actual
         while current >= len(links):
             try:
+                sleep(random.uniform(0.2, 0.4))
                 result = self.driver.find_element(By.XPATH, "(" + self.__CONSTANT["title"] + ")" + f"[{cResult}]")
                 actions = ActionChains(self.driver)
                 actions.move_to_element(result)
@@ -311,16 +340,19 @@ class Scrapper:
     def scrap(self, url: str, save=False, filename="scraped", format=".json", encoding="utf-8",
               title=False, score=False, num_reviews=False, tag=False, address=False, coords=False,
               domain=False, email=False, phone=False, plus_code=False, group=False) -> list:
+        sleep(random.uniform(30, 60))
         print("Searching results for: " + "\33[0;35;40m" + filename.replace("_", " ") + "\33[0m")
         inicioScrap = default_timer()
         self.driver.get(url=url)    # buscar resultados para la query
+        sleep(random.uniform(0.5, 1))
+        self.driver.maximize_window()
         try:    self.acceptCookies()
         except: pass
-
         if not group: self.chest = {}
         item = 1
         numResults = len(list(self.driver.find_elements(By.XPATH, self.__CONSTANT["title"])))
         while item <= numResults:
+            sleep(random.uniform(0.5, 1))
             inicio = default_timer()
             numResults = self.scroll(item)
             try:
@@ -336,6 +368,7 @@ class Scrapper:
             # key = str(self.__createKey(self.driver.find_element(By.XPATH, "(" + self.__CONSTANT["title"] + ")" + f"[{item}]").text)).encode()
             # key = sha1(key).hexdigest()
             if key not in list(self.chest.keys()):
+                self.goTo(result)
                 self.chest.update({key: self.getData(title=title, score=score, num_reviews=num_reviews, tag=tag, address=address, coords=coords, domain=domain, phone=phone, plus_code=plus_code)})
                 fin = default_timer()
                 print(f"{item}".rjust(4), "- ✅ data successfully collected.", "\33[0;36;40m" + "KEY: " + "\33[0m" + "\33[0;32;40m" + f"{key[:40]}".ljust(40) + "\33[0m" + "\33[0;32;40m" + "\33[0;36;40m" + " TIME: " + "\33[0m" + F"{fin - inicio:.2f}s".rjust(5))

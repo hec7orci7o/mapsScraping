@@ -1,0 +1,12 @@
+title; score; num_reviews; tag; address; coords; domain; phone; plus_code; email
+None;4.4;71;Floristería;Av. Francisco de Goya, 56, 50005 Zaragoza, España;('41.6447054', '-0.8921134');floristerialarosaleda.com;+34976233510;J4V5+V5 Zaragoza, España;[];
+Floristería Luna d'Herreiz;4.7;57;Floristería;C. Bolonia, 8, 50008 Zaragoza, España;('41.6430515', '-0.88484');floristerialunadherreiz.es;+34976237460;J4V8+53 Zaragoza, España;['lunadherreiz@hotmail.com'];
+Floristería María Aliaga;4.9;29;Floristería;Calle de Ramón y Cajal, 45, 50004 Zaragoza, España;None;None;+34976435183;M427+RC Zaragoza, España;
+None;None;124;Floristería;C. de San Juan Bosco, 18, 50009 Zaragoza, España;('41.6449368', '-0.9007635');floristeriasayde.com;+34976048641;J3VX+XM Zaragoza, España;['info@floristeriasayde.com', 'floristeriasayde@gmail.com'];
+La Florería Zaragoza;4.5;61;Floristería;C. Santander, 8, 50010 Zaragoza, España;('41.648928', '-0.8950216');lafloreriazaragoza.es;+34876162148;J4X3+HX Zaragoza, España;[];
+Floristería Decoflor Zaragoza;4.8;29;Floristería;C. de Cantín y Gamboa, 17, 19, 50002 Zaragoza, España;('41.6504632', '-0.8717272');decoflorzaragoza.es;+34876063162;M42H+58 Zaragoza, España;None;
+Floristas García Zaragoza;4.7;40;Floristería;Av. de Valencia, 24, 50005 Zaragoza, España;None;floristasgarcia.es;+34976359898;J4W3+MR Zaragoza, España;['info@floristasgarcia.es'];
+La Mandragora;4.5;82;Floristería;Avda, C. Gertrudis Gómez de Avellaneda, 29, 50018 Zaragoza, España;('41.6680274', '-0.8893702');None;+34976731870;M496+67 Zaragoza, España;
+None;4.3;29;Floristería;Plaza los Sitios, 1, 50001 Zaragoza, España;('41.6497222', '-0.8791667');floristerialossitios.com;+34976221806;J4XC+V8 Zaragoza, España;['azucenalossitios@yahoo.es'];
+Floristería La Moderna;4.4;17;Floristería;C. Jussepe Martínez, 3, 50003 Zaragoza, España;('41.6545863', '-0.8802297');floristerialamoderna.com;+34976291888;M439+RW Zaragoza, España;['irene@floristerialamoderna.com'];
+Akalia Floristería Zaragoza;4.6;138;Floristería;C. de María Zambrano, 4, 50018 Zaragoza, España;('41.6647103', '-0.8837105');akaliafloristerias.es;+34666155761;M478+VG Zaragoza, España;['nfo@akaliafloristerias.es', 'info@akaliafloristerias.es'];
