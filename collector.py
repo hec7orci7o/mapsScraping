@@ -41,7 +41,7 @@ class collector:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
     def collect(self, save= False, filename="collected", format=".json", encoding="utf-8") -> None:
-        scrapper = sc.Scrapper()
+        scrapper = sc.Scrapper(myAgent=None, myProxy="177.93.33.246:999", headless=False)
 
         for i, domain in enumerate(self.domainList):
             print(f"{i + 1} - recogiendo datos de: https://{domain}")

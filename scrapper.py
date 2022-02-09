@@ -11,6 +11,8 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException,
 from random_user_agent.user_agent import UserAgent
 from random_user_agent.params import SoftwareName, OperatingSystem
 
+PATH = "data/"
+
 class Scrapper:
     __FINDER = {
         "title": "//h1//span[1]",
@@ -318,7 +320,7 @@ class Scrapper:
         return header[:-2]
 
     def saveCollection(self, data: dict, filename="scraped", format=".json", encoding="utf-8") -> None:
-        with open(filename + format, mode="w+", encoding=encoding) as f:
+        with open(PATH + filename + format, mode="w+", encoding=encoding) as f:
             try:
                 if format == ".json":
                     json.dump(data, f, ensure_ascii=False, indent=4)
