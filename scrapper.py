@@ -236,6 +236,7 @@ class Scrapper:
             links = self.getLinks(domain)
             intento = 0
             for link, p in links:
+                sleep(random.uniform(0.5, 1))
                 emails = self.getEmails()
                 if len(emails) != 0 or intento == self.__MAX_INTENTOS:
                     break
