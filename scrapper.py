@@ -52,6 +52,7 @@ class Scrapper:
         proxy.http_proxy = myProxy
         proxy.ssl_proxy = myProxy
         capabilities = webdriver.DesiredCapabilities.FIREFOX
+        capabilities["marionette"] = False
         proxy.add_to_capabilities(capabilities)
 
         # Agent Configuration
@@ -67,13 +68,23 @@ class Scrapper:
         firefox_options.set_preference("general.useragent.override", myAgent)   # https://gist.github.com/pzb/b4b6f57144aea7827ae4
         if headless: firefox_options.headless = True
         
+        # Profile configuration
+        profile = webdriver.FirefoxProfile()
+        profile.set_preference("network.proxy.type", 1)
+        profile.set_preference("network.proxy.http", re.search(".*:", myProxy).group()[:-1])
+        profile.set_preference("network.proxy.http_port", int(re.search(":.*", myProxy).group()[1:]))
+        profile.set_preference("dom.webdriver.enabled", False)
+        profile.set_preference('useAutomationExtension', False)
+        profile.update_preferences()
+
         # Driver set-up
-        self.driver = webdriver.Firefox(options=firefox_options, desired_capabilities=capabilities)
+        self.driver = webdriver.Firefox(firefox_profile=profile, options=firefox_options, desired_capabilities=capabilities)
         self.chest = {}
 
     def __del__(self) -> None:
-        self.driver.delete_all_cookies()
-        self.driver.quit()
+        # self.driver.delete_all_cookies()
+        # self.driver.quit()
+        pass
 
     def __loadBar(self, iteration, total, prefix="", suffix="", decimals=1, length=100, fill=">"):
         percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
