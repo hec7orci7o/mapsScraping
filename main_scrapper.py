@@ -1,7 +1,7 @@
 import scrapper as sc
 
 def main(query)-> None:
-    scrapper = sc.Scrapper(myAgent=None, myProxy="165.16.27.2:1981", headless=False)
+    scrapper = sc.Scrapper(myAgent=None, myProxy="98.12.195.129:443", headless=False)
 
     query = query.lower()
     url = f"https://www.google.com/maps?q="+query.replace(" ", "+")+"&hl=es"

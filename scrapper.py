@@ -82,9 +82,8 @@ class Scrapper:
         self.chest = {}
 
     def __del__(self) -> None:
-        # self.driver.delete_all_cookies()
-        # self.driver.quit()
-        pass
+        self.driver.delete_all_cookies()
+        self.driver.quit()
 
     def __loadBar(self, iteration, total, prefix="", suffix="", decimals=1, length=100, fill=">"):
         percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
