@@ -52,6 +52,7 @@ def sendMail(to: str, subject: str, message: str) -> None:
 def main() -> None:
     files = ls(path="data")
     keys = readKeys(files, key="email", format="list")
+    print(keys)
     # sendMail(to="", subject="", message="")
 
 if __name__ == "__main__":
